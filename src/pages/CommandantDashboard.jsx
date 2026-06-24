@@ -246,24 +246,63 @@ export default function CommandantDashboard() {
             from: 'devshaala@gmail.com',
             subject: 'DevShaala: Python MasterClass Final Exam Results Published',
             body: emailBody,
-            passcode
+            passcode,
+            status: 'Pending'
           });
         } else if (sub.marks !== null && sub.passcode) {
-          // If they already have passcode, include them in the simulated logs for completeness
+          // If they already have passcode, include them in the logs for completeness
           const emailBody = `Dear ${sub.name},\n\nYour results for the Python Masterclass Final Exam have been graded.\n\nScore: ${sub.marks}/30\nFeedback: ${sub.feedback || 'None'}\n\nPlease enter the following 16-digit password on the results portal to decrypt and download your official completion certificate:\n${sub.passcode}\n\nCongratulations,\nDevShaala Invigilation Team`;
           dispatches.push({
             to: sub.email,
             from: 'devshaala@gmail.com',
             subject: 'DevShaala: Python MasterClass Final Exam Results Published (Resent)',
             body: emailBody,
-            passcode: sub.passcode
+            passcode: sub.passcode,
+            status: 'Pending'
           });
         }
       }
 
-      alert('Results published successfully!');
       setDispatchedEmails(dispatches);
       setShowEmailModal(true);
+
+      // 3. Dispatch real emails via SMTP.js sequentially to update status progressively
+      if (dispatches.length > 0) {
+        const updatedDispatches = [...dispatches];
+        for (let i = 0; i < updatedDispatches.length; i++) {
+          const d = updatedDispatches[i];
+          updatedDispatches[i] = { ...d, status: 'Sending...' };
+          setDispatchedEmails([...updatedDispatches]);
+
+          if (window.Email) {
+            try {
+              const htmlBody = d.body.replace(/\n/g, '<br>');
+              const response = await window.Email.send({
+                Host: "smtp.gmail.com",
+                Username: "devshaala@gmail.com",
+                Password: "cdoyctvndvvsrafv", // password without spaces
+                To: d.to,
+                From: "devshaala@gmail.com",
+                Subject: d.subject,
+                Body: htmlBody
+              });
+
+              if (response === 'OK') {
+                updatedDispatches[i] = { ...d, status: 'Sent Successfully' };
+              } else {
+                updatedDispatches[i] = { ...d, status: `Failed: ${response}` };
+              }
+            } catch (err) {
+              updatedDispatches[i] = { ...d, status: `Error: ${err.message}` };
+            }
+          } else {
+            updatedDispatches[i] = { ...d, status: 'Error: SMTP.js not loaded' };
+          }
+          setDispatchedEmails([...updatedDispatches]);
+        }
+      }
+
+      alert('Results published and email dispatch process completed!');
       
       // Reload submissions from database
       await fetchSubmissions();
@@ -642,10 +681,31 @@ export default function CommandantDashboard() {
             <div style={{ maxHeight: '400px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '15px' }}>
               {dispatchedEmails.map((email, idx) => (
                 <div key={idx} className="email-sim-card">
-                  <div className="email-header">
-                    <div className="email-meta"><b>From:</b> {email.from}</div>
-                    <div className="email-meta"><b>To:</b> {email.to}</div>
-                    <div className="email-meta"><b>Subject:</b> {email.subject}</div>
+                  <div className="email-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <div className="email-meta"><b>From:</b> {email.from}</div>
+                      <div className="email-meta"><b>To:</b> {email.to}</div>
+                      <div className="email-meta"><b>Subject:</b> {email.subject}</div>
+                    </div>
+                    <div style={{
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      fontSize: '11px',
+                      fontWeight: 'bold',
+                      background: email.status === 'Sent Successfully' ? 'rgba(74, 222, 128, 0.2)' : 
+                                  email.status === 'Sending...' ? 'rgba(250, 204, 21, 0.2)' : 
+                                  email.status?.startsWith('Failed') || email.status?.startsWith('Error') ? 'rgba(248, 113, 113, 0.2)' : 'rgba(156, 163, 175, 0.2)',
+                      color: email.status === 'Sent Successfully' ? 'rgb(74, 222, 128)' : 
+                             email.status === 'Sending...' ? 'rgb(250, 204, 21)' : 
+                             email.status?.startsWith('Failed') || email.status?.startsWith('Error') ? 'rgb(248, 113, 113)' : 'rgb(156, 163, 175)',
+                      border: `1px solid ${
+                        email.status === 'Sent Successfully' ? 'rgba(74, 222, 128, 0.4)' : 
+                        email.status === 'Sending...' ? 'rgba(250, 204, 21, 0.4)' : 
+                        email.status?.startsWith('Failed') || email.status?.startsWith('Error') ? 'rgba(248, 113, 113, 0.4)' : 'rgba(156, 163, 175, 0.4)'
+                      }`
+                    }}>
+                      {email.status || 'Pending'}
+                    </div>
                   </div>
                   <div className="email-body">
                     <p style={{ whiteSpace: 'pre-wrap' }}>{email.body}</p>
