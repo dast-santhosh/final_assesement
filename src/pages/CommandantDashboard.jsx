@@ -4,6 +4,32 @@ import { db } from '../firebase';
 import { doc, getDoc, setDoc, getDocs, collection } from 'firebase/firestore';
 import { Users, FileText, CheckCircle, Mail, Send, Award, ArrowLeft, Shield } from 'lucide-react';
 
+const sendSmtpEmail = (emailConfig) => {
+  return new Promise((resolve, reject) => {
+    try {
+      const config = {
+        ...emailConfig,
+        nocache: Math.floor(1e6 * Math.random() + 1),
+        Action: "Send"
+      };
+      const payload = JSON.stringify(config);
+      
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", "https://smtpjs.com/v3/smtpjs.aspx?", true);
+      xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+      xhr.onload = function () {
+        resolve(xhr.responseText);
+      };
+      xhr.onerror = function (e) {
+        reject(new Error("Network error occurred during SMTP request"));
+      };
+      xhr.send(payload);
+    } catch (err) {
+      reject(err);
+    }
+  });
+};
+
 export default function CommandantDashboard() {
   const navigate = useNavigate();
   const [submissions, setSubmissions] = useState([]);
@@ -501,24 +527,20 @@ personalized_html
           updatedDispatches[i] = { ...d, status: 'Sending...' };
           setDispatchedEmails([...updatedDispatches]);
 
-          if (window.Email) {
-            const response = await window.Email.send({
-              Host: "smtp.gmail.com",
-              Username: "devshaala@gmail.com",
-              Password: "cdoyctvndvvsrafv", // password without spaces
-              To: d.to,
-              From: "devshaala@gmail.com",
-              Subject: d.subject,
-              Body: htmlBody
-            });
+          const response = await sendSmtpEmail({
+            Host: "smtp.gmail.com",
+            Username: "devshaala@gmail.com",
+            Password: "cdoyctvndvvsrafv", // password without spaces
+            To: d.to,
+            From: "devshaala@gmail.com",
+            Subject: d.subject,
+            Body: htmlBody
+          });
 
-            if (response === 'OK') {
-              updatedDispatches[i] = { ...d, status: 'Sent Successfully', body: 'HTML compiled via Python WASM and sent successfully.' };
-            } else {
-              updatedDispatches[i] = { ...d, status: `Failed: ${response}` };
-            }
+          if (response === 'OK') {
+            updatedDispatches[i] = { ...d, status: 'Sent Successfully', body: 'HTML compiled via Python WASM and sent successfully.' };
           } else {
-            updatedDispatches[i] = { ...d, status: 'Error: SMTP.js not loaded' };
+            updatedDispatches[i] = { ...d, status: `Failed: ${response}` };
           }
         } catch (err) {
           updatedDispatches[i] = { ...d, status: `Error: ${err.message}` };
