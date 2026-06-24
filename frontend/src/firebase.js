@@ -1,0 +1,16 @@
+import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyAKLmBYyEJMHiTcL7T1O4asErBv5ncCuC0",
+    authDomain: "apex-code-labs.firebaseapp.com",
+    projectId: "apex-code-labs",
+    storageBucket: "apex-code-labs.firebasestorage.app",
+    messagingSenderId: "98765885664",
+    appId: "1:98765885664:web:4aa13742b5c269fe588085",
+    measurementId: "G-3QNKWQQZFG"
+};
+
+const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+export default app;

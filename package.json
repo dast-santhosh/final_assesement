@@ -1,0 +1,16 @@
+{
+  "name": "final-assessment-monorepo",
+  "version": "1.0.0",
+  "description": "Monorepo configuration for Vercel combined frontend and backend deployment",
+  "type": "module",
+  "scripts": {
+    "build": "cd frontend && npm install && npm run build"
+  },
+  "dependencies": {
+    "cloudinary": "^2.10.0",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "firebase": "^12.15.0",
+    "nodemailer": "^9.0.1"
+  }
+}
