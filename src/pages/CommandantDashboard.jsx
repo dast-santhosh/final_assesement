@@ -221,85 +221,309 @@ export default function CommandantDashboard() {
       // 1. Publish global config to Firestore
       await setDoc(doc(db, 'config', 'global'), { resultsPublished: true });
 
+      const EMAIL_HTML_TEMPLATE = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Final Exam Scores - DevShaala</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #e0e7ff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333333;">
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #e0e7ff; padding: 40px 10px;">
+        <tr>
+            <td align="center">
+                <table width="100%" max-width="600" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff; max-width: 600px; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
+                    <tr>
+                        <td align="center" style="padding: 25px 20px; background-color: #ffffff; border-bottom: 2px solid #f3f4f6;">
+                            <img src="https://i.ibb.co/5hLjp6qw/Dev-Shaala-Logo.png" alt="DevShaala Logo" style="max-height: 55px; display: block; margin-bottom: 10px;">
+                            <p style="margin: 0; font-size: 14px; font-weight: bold; letter-spacing: 0.5px;">
+                                <span style="color: #1e3a8a;">from DEVSHAALA</span> 
+                                <span style="color: #9ca3af; font-weight: normal; margin: 0 5px;">~</span> 
+                                <span style="color: #10b981;">under GTC</span>
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <img src="https://images.unsplash.com/photo-1555066931-4365d14bab8c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Python MasterClass" style="width: 100%; max-height: 200px; object-fit: cover; display: block;">
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 40px 30px;">
+                            <h2 style="margin-top: 0; color: #1e3a8a; font-size: 24px; text-align: center;">Python Masterclass Assessment</h2>
+                            <p style="font-size: 16px; line-height: 1.6; color: #4b5563;">Hi <strong>$NAME</strong>,</p>
+                            <p style="font-size: 16px; line-height: 1.6; color: #4b5563;">Congratulations on successfully completing your <strong>Final Exam</strong>! Below is a detailed breakdown of your performance, reviewed by your mentor.</p>
+                            <p style="font-size: 16px; line-height: 1.6; color: #4b5563;">Please enter the following 16-digit passcode on the results portal to decrypt and download your official completion certificate:</p>
+                            <div style="text-align: center; margin: 20px 0;">
+                                <span style="color: #ef4444; font-family: monospace; font-size: 20px; font-weight: bold; background: #fee2e2; padding: 10px 20px; border-radius: 6px; border: 1px dashed #fca5a5; display: inline-block; letter-spacing: 1px;">$PASSCODE</span>
+                            </div>
+                            <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin: 30px 0; background-color: #f8fafc; border: 2px solid #bfdbfe; border-radius: 10px; overflow: hidden;">
+                                <tr>
+                                    <td align="center" style="background-color: #1e3a8a; padding: 20px; color: #ffffff;">
+                                        <p style="margin: 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #93c5fd;">Total Score</p>
+                                        <h1 style="margin: 5px 0 0 0; font-size: 48px;">$TOTAL</h1>
+                                        <p style="margin: 5px 0 0 0; font-size: 18px; font-weight: bold; color: #10b981;">Grade: $GRADE</p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 20px 30px;">
+                                        <table width="100%" border="0" cellspacing="0" cellpadding="10" style="font-size: 15px;">
+                                            <tr>
+                                                <td style="color: #4b5563; border-bottom: 1px solid #e2e8f0;">Section A: MCQ Questionnaire</td>
+                                                <td align="right" style="color: #1e3a8a; font-weight: bold; border-bottom: 1px solid #e2e8f0;">$QUESTIONAIRRE</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="color: #4b5563; border-bottom: 1px solid #e2e8f0;">Section B: Core Programs</td>
+                                                <td align="right" style="color: #1e3a8a; font-weight: bold; border-bottom: 1px solid #e2e8f0;">$PROGRAM</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="color: #4b5563; border-bottom: 1px solid #e2e8f0;">Section C: Systems Scenario (Long Code)</td>
+                                                <td align="right" style="color: #1e3a8a; font-weight: bold; border-bottom: 1px solid #e2e8f0;">$PRESENTATION</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="color: #4b5563; border-bottom: 1px solid #e2e8f0;">Section D: Theoretical Answers</td>
+                                                <td align="right" style="color: #1e3a8a; font-weight: bold; border-bottom: 1px solid #e2e8f0;">$EXPLANATION</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="color: #4b5563;">Overall Impression</td>
+                                                <td align="right" style="color: #1e3a8a; font-weight: bold;">$OVERALL</td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                            <div style="background-color: #ecfdf5; border-left: 4px solid #10b981; padding: 15px 20px; margin-bottom: 30px;">
+                                <p style="margin: 0; color: #065f46; font-size: 15px; font-style: italic;">
+                                    <strong>Mentor's Remark:</strong> "$REMARKS"
+                                </p>
+                            </div>
+                            <hr style="border: none; border-top: 1px dashed #cbd5e1; margin: 30px 0;">
+                            <p style="font-size: 14px; font-weight: bold; color: #1e3a8a; margin-bottom: 10px;">Message summary for your records:</p>
+                            <div style="background-color: #f1f5f9; padding: 20px; border-radius: 8px;">
+                                <p style="font-family: 'Courier New', Courier, monospace; font-size: 13px; line-height: 1.6; color: #334155; margin: 0;">
+                                    Name: $NAME<br>
+                                    Batch Name: Python Masterclass Assessment<br>
+                                    Exam Name: Final Theory & Practical Exam<br>
+                                    --------------------------------------<br>
+                                    MCQ Questionnaire: $QUESTIONAIRRE<br>
+                                    Core Programs    : $PROGRAM<br>
+                                    Systems Scenario : $PRESENTATION<br>
+                                    Theory Answers   : $EXPLANATION<br>
+                                    Overall          : $OVERALL<br>
+                                    --------------------------------------<br>
+                                    Total Marks      : $TOTAL<br>
+                                    Grade            : $GRADE<br>
+                                    Decryption Key   : $PASSCODE<br>
+                                    Remarks          : $REMARKS<br>
+                                    <br>
+                                    Best Regards,<br>
+                                    SANTHOSH<br>
+                                    Mentor, DEVSHAALA
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="center" style="background-color: #1e3a8a; padding: 20px; color: #bfdbfe; font-size: 12px;">
+                            <p style="margin: 0;">© 2026 DevShaala under GTC. All rights reserved.</p>
+                        </td>
+                    </tr>
+                </table>
+                <div style="height: 40px;"></div>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>`;
+
       const dispatches = [];
       // 2. Loop over submissions and generate passcode if they are graded and don't have passcode yet
       for (const sub of submissions) {
-        if (sub.marks !== null && !sub.passcode) {
-          const p1 = Math.floor(1000 + Math.random() * 9000);
-          const p2 = Math.floor(1000 + Math.random() * 9000);
-          const p3 = Math.floor(1000 + Math.random() * 9000);
-          const p4 = Math.floor(1000 + Math.random() * 9000);
-          const passcode = `${p1}-${p2}-${p3}-${p4}`;
+        if (sub.marks !== null) {
+          let passcode = sub.passcode;
+          if (!passcode) {
+            const p1 = Math.floor(1000 + Math.random() * 9000);
+            const p2 = Math.floor(1000 + Math.random() * 9000);
+            const p3 = Math.floor(1000 + Math.random() * 9000);
+            const p4 = Math.floor(1000 + Math.random() * 9000);
+            passcode = `${p1}-${p2}-${p3}-${p4}`;
 
-          const updatedSub = {
-            ...sub,
-            passcode,
-            published: true
-          };
+            const updatedSub = {
+              ...sub,
+              passcode,
+              published: true
+            };
 
-          await setDoc(doc(db, 'submissions', sub.email.toLowerCase()), updatedSub);
+            await setDoc(doc(db, 'submissions', sub.email.toLowerCase()), updatedSub);
+          }
 
-          const emailBody = `Dear ${sub.name},\n\nYour results for the Python Masterclass Final Exam have been graded.\n\nScore: ${sub.marks}/30\nFeedback: ${sub.feedback || 'None'}\n\nPlease enter the following 16-digit password on the results portal to decrypt and download your official completion certificate:\n${passcode}\n\nCongratulations,\nDevShaala Invigilation Team`;
+          // Calculate section totals
+          let marksMcq = 0;
+          let marksPrograms = 0;
+          let marksLongPrograms = 0;
+          let marksShortAnswers = 0;
+
+          const qGrades = sub.questionGrades || {};
+          
+          // Section A: MCQ (A_1 to A_20, 0.5 marks each)
+          for (let i = 1; i <= 20; i++) {
+            marksMcq += Number(qGrades[`A_${i}`]) || 0;
+          }
+          // Section B: Core Programs (B_1 to B_3, 3 marks each)
+          for (let i = 1; i <= 3; i++) {
+            marksPrograms += Number(qGrades[`B_${i}`]) || 0;
+          }
+          // Section C: Long Program (C_1, 6 marks)
+          marksLongPrograms += Number(qGrades[`C_1`]) || 0;
+          // Section D: Short Answers (D_1 to D_5, 1 mark each)
+          for (let i = 1; i <= 5; i++) {
+            marksShortAnswers += Number(qGrades[`D_${i}`]) || 0;
+          }
+
+          const marksTotal = sub.marks;
+          let grade = "F";
+          let overallImpression = "Needs Improvement";
+
+          if (marksTotal >= 27) {
+            grade = "A+";
+            overallImpression = "Outstanding Performance";
+          } else if (marksTotal >= 24) {
+            grade = "A";
+            overallImpression = "Excellent Performance";
+          } else if (marksTotal >= 21) {
+            grade = "B+";
+            overallImpression = "Very Good";
+          } else if (marksTotal >= 18) {
+            grade = "B";
+            overallImpression = "Good Effort";
+          } else if (marksTotal >= 15) {
+            grade = "C";
+            overallImpression = "Satisfactory";
+          } else {
+            grade = "F";
+            overallImpression = "Unsatisfactory / Fail";
+          }
 
           dispatches.push({
             to: sub.email,
             from: 'devshaala@gmail.com',
-            subject: 'DevShaala: Python MasterClass Final Exam Results Published',
-            body: emailBody,
+            subject: `DevShaala Python Masterclass Exam Results - ${sub.name}`,
             passcode,
-            status: 'Pending'
-          });
-        } else if (sub.marks !== null && sub.passcode) {
-          // If they already have passcode, include them in the logs for completeness
-          const emailBody = `Dear ${sub.name},\n\nYour results for the Python Masterclass Final Exam have been graded.\n\nScore: ${sub.marks}/30\nFeedback: ${sub.feedback || 'None'}\n\nPlease enter the following 16-digit password on the results portal to decrypt and download your official completion certificate:\n${sub.passcode}\n\nCongratulations,\nDevShaala Invigilation Team`;
-          dispatches.push({
-            to: sub.email,
-            from: 'devshaala@gmail.com',
-            subject: 'DevShaala: Python MasterClass Final Exam Results Published (Resent)',
-            body: emailBody,
-            passcode: sub.passcode,
-            status: 'Pending'
+            status: 'Pending',
+            studentName: sub.name,
+            marksMcq: marksMcq.toFixed(1),
+            marksPrograms: marksPrograms.toFixed(1),
+            marksLongPrograms: marksLongPrograms.toFixed(1),
+            marksShortAnswers: marksShortAnswers.toFixed(1),
+            marksTotal: marksTotal.toFixed(1),
+            grade,
+            overallImpression,
+            feedback: sub.feedback || 'None'
           });
         }
       }
 
-      setDispatchedEmails(dispatches);
+      if (dispatches.length === 0) {
+        alert('No graded submissions found to publish.');
+        setPublishing(false);
+        return;
+      }
+
+      // Initial loading state in modal
+      setDispatchedEmails([{ 
+        to: 'All Candidates', 
+        from: 'system', 
+        subject: 'Initializing Python WASM Compiler...', 
+        body: 'Please wait while WebAssembly finishes loading the Python runtime...', 
+        passcode: '----', 
+        status: 'Loading WASM...' 
+      }]);
       setShowEmailModal(true);
 
+      // Load Pyodide WASM
+      let pyodideInstance = window.pyodideInstance;
+      if (!pyodideInstance) {
+        try {
+          pyodideInstance = await window.loadPyodide();
+          window.pyodideInstance = pyodideInstance;
+        } catch (err) {
+          alert(`Failed to load Python WASM compiler: ${err.message}`);
+          setShowEmailModal(false);
+          setPublishing(false);
+          return;
+        }
+      }
+
+      // Reset logs modal with the parsed dispatches list
+      setDispatchedEmails(dispatches);
+
       // 3. Dispatch real emails via SMTP.js sequentially to update status progressively
-      if (dispatches.length > 0) {
-        const updatedDispatches = [...dispatches];
-        for (let i = 0; i < updatedDispatches.length; i++) {
-          const d = updatedDispatches[i];
+      const updatedDispatches = [...dispatches];
+      for (let i = 0; i < updatedDispatches.length; i++) {
+        const d = updatedDispatches[i];
+        updatedDispatches[i] = { ...d, status: 'Compiling in Python...' };
+        setDispatchedEmails([...updatedDispatches]);
+
+        try {
+          // Set variables in Pyodide namespace
+          pyodideInstance.globals.set("student_name", d.studentName);
+          pyodideInstance.globals.set("marks_mcq", d.marksMcq);
+          pyodideInstance.globals.set("marks_programs", d.marksPrograms);
+          pyodideInstance.globals.set("marks_long_programs", d.marksLongPrograms);
+          pyodideInstance.globals.set("marks_short_answers", d.marksShortAnswers);
+          pyodideInstance.globals.set("marks_total", d.marksTotal);
+          pyodideInstance.globals.set("grade", d.grade);
+          pyodideInstance.globals.set("overall_impression", d.overallImpression);
+          pyodideInstance.globals.set("feedback", d.feedback);
+          pyodideInstance.globals.set("passcode", d.passcode);
+
+          // Execute template replacement in Python
+          const pythonCode = `
+from string import Template
+
+template = Template("""${EMAIL_HTML_TEMPLATE}""")
+personalized_html = template.safe_substitute(
+    NAME=student_name,
+    PROGRAM=f"{marks_programs}/9.0",
+    PRESENTATION=f"{marks_long_programs}/6.0",
+    EXPLANATION=f"{marks_short_answers}/5.0",
+    QUESTIONAIRRE=f"{marks_mcq}/10.0",
+    OVERALL=overall_impression,
+    TOTAL=f"{marks_total}/30.0",
+    GRADE=grade,
+    REMARKS=feedback,
+    PASSCODE=passcode
+)
+personalized_html
+`;
+          const htmlBody = pyodideInstance.runPython(pythonCode);
+
           updatedDispatches[i] = { ...d, status: 'Sending...' };
           setDispatchedEmails([...updatedDispatches]);
 
           if (window.Email) {
-            try {
-              const htmlBody = d.body.replace(/\n/g, '<br>');
-              const response = await window.Email.send({
-                Host: "smtp.gmail.com",
-                Username: "devshaala@gmail.com",
-                Password: "cdoyctvndvvsrafv", // password without spaces
-                To: d.to,
-                From: "devshaala@gmail.com",
-                Subject: d.subject,
-                Body: htmlBody
-              });
+            const response = await window.Email.send({
+              Host: "smtp.gmail.com",
+              Username: "devshaala@gmail.com",
+              Password: "cdoyctvndvvsrafv", // password without spaces
+              To: d.to,
+              From: "devshaala@gmail.com",
+              Subject: d.subject,
+              Body: htmlBody
+            });
 
-              if (response === 'OK') {
-                updatedDispatches[i] = { ...d, status: 'Sent Successfully' };
-              } else {
-                updatedDispatches[i] = { ...d, status: `Failed: ${response}` };
-              }
-            } catch (err) {
-              updatedDispatches[i] = { ...d, status: `Error: ${err.message}` };
+            if (response === 'OK') {
+              updatedDispatches[i] = { ...d, status: 'Sent Successfully', body: 'HTML compiled via Python WASM and sent successfully.' };
+            } else {
+              updatedDispatches[i] = { ...d, status: `Failed: ${response}` };
             }
           } else {
             updatedDispatches[i] = { ...d, status: 'Error: SMTP.js not loaded' };
           }
-          setDispatchedEmails([...updatedDispatches]);
+        } catch (err) {
+          updatedDispatches[i] = { ...d, status: `Error: ${err.message}` };
         }
+        setDispatchedEmails([...updatedDispatches]);
       }
 
       alert('Results published and email dispatch process completed!');
@@ -333,14 +557,6 @@ export default function CommandantDashboard() {
           <span className="logo-text" style={{ color: 'var(--danger)' }}>Teacher Security Command Console</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <button 
-            type="button" 
-            className="btn-secondary" 
-            style={{ padding: '8px 16px', fontSize: '13px', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', color: '#3b82f6' }}
-            onClick={() => navigate('/project-dispatcher')}
-          >
-            <Mail size={14} /> Final Project Dispatcher
-          </button>
           <button 
             type="button" 
             className="btn-secondary" 
