@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { apiRequest } from '../api';
+import { db } from '../firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Shield, AlertTriangle, MonitorPlay, Send, RefreshCw, Compass, ArrowLeft, ArrowRight, Check } from 'lucide-react';
 import Editor from '@monaco-editor/react';
 
@@ -130,13 +131,80 @@ export default function ExamPage() {
   const startExamSession = async () => {
     setLoading(true);
     try {
-      const res = await apiRequest('/api/start-exam', {
-        method: 'POST',
-        body: JSON.stringify({ email })
-      });
-      setQuestionsData(res.questions);
-      setTimeRemaining(res.timeRemainingSeconds);
-      setReferencePhoto(res.referencePhoto || '');
+      // 1. Fetch questions.json from public directory
+      const questionsRes = await fetch('/questions.json');
+      if (!questionsRes.ok) {
+        throw new Error('Failed to load exam questions configuration file.');
+      }
+      const questionsData = await questionsRes.json();
+      setQuestionsData(questionsData);
+
+      // 2. Load candidate booking from Firestore
+      const bookingDoc = await getDoc(doc(db, 'bookings', email.toLowerCase()));
+      if (!bookingDoc.exists()) {
+        alert('No exam slot booking found for this email.');
+        navigate('/book');
+        return;
+      }
+      const booking = bookingDoc.data();
+      setReferencePhoto(booking.photo || '');
+
+      // 3. Load or create submission document in Firestore
+      const now = new Date();
+      const subRef = doc(db, 'submissions', email.toLowerCase());
+      const subDoc = await getDoc(subRef);
+
+      let startedAtStr = '';
+      if (subDoc.exists()) {
+        const subData = subDoc.data();
+        if (subData.submittedAt) {
+          alert('Exam has already been submitted.');
+          navigate('/book');
+          return;
+        }
+        startedAtStr = subData.startedAt;
+        setAnswers(subData.answers || {});
+      } else {
+        // Enforce time slot window logic
+        const slotStart = new Date(booking.startIso);
+        const startLimit = new Date(slotStart.getTime() + 30 * 60 * 1000); // 30 minutes window
+
+        if (now < slotStart) {
+          const diffMs = slotStart - now;
+          const diffMins = Math.ceil(diffMs / 60000);
+          alert(`Exam slot has not started yet. Starts in ${diffMins} minutes.`);
+          navigate('/book');
+          return;
+        }
+
+        if (now > startLimit) {
+          alert('You failed to start the exam within the first 30 minutes of your booked time slot. Access denied.');
+          navigate('/book');
+          return;
+        }
+
+        // Initialize new submission document
+        const newSubmission = {
+          name: booking.name,
+          email: email.toLowerCase(),
+          startedAt: now.toISOString(),
+          submittedAt: null,
+          answers: {},
+          logs: [],
+          marks: null,
+          feedback: "",
+          passcode: null,
+          published: false
+        };
+        await setDoc(subRef, newSubmission);
+        startedAtStr = newSubmission.startedAt;
+      }
+
+      // Calculate time remaining
+      const startedAt = new Date(startedAtStr);
+      const elapsedSeconds = Math.floor((now - startedAt) / 1000);
+      const timeRemainingSeconds = Math.max(90 * 60 - elapsedSeconds, 0);
+      setTimeRemaining(timeRemainingSeconds);
       
       const timestamp = new Date().toLocaleTimeString();
       setLogs([{
@@ -146,7 +214,7 @@ export default function ExamPage() {
       }]);
 
       // Compile questions list flat array
-      const examPaper = res.questions?.exam_paper;
+      const examPaper = questionsData?.exam_paper;
       const list = [];
       if (examPaper) {
         if (examPaper.Section_A_MCQs?.questions) {
@@ -307,19 +375,31 @@ export default function ExamPage() {
       setExamStarted(true);
     }
   };
-
   const submitExam = async (currentAnswers = answers, isAuto = false) => {
     setLoading(true);
     exitFullscreen();
     try {
-      await apiRequest('/api/submit-exam', {
-        method: 'POST',
-        body: JSON.stringify({
-          email,
-          answers: currentAnswers,
-          logs
-        })
-      });
+      const now = new Date();
+      const subRef = doc(db, 'submissions', email.toLowerCase());
+      const subDoc = await getDoc(subRef);
+      if (!subDoc.exists()) {
+        alert('No active exam session found.');
+        navigate('/book');
+        return;
+      }
+      const submission = subDoc.data();
+      if (submission.submittedAt) {
+        alert('Exam is already submitted.');
+        navigate('/book');
+        return;
+      }
+
+      await setDoc(subRef, {
+        answers: currentAnswers || {},
+        logs: logs || [],
+        submittedAt: now.toISOString()
+      }, { merge: true });
+
       alert(isAuto ? 'Exam auto-submitted successfully.' : 'Exam submitted successfully! Verification completed.');
       navigate('/book');
     } catch (e) {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiRequest } from '../api';
+import { db } from '../firebase';
+import { doc, getDoc, setDoc, getDocs, collection } from 'firebase/firestore';
 import { Users, FileText, CheckCircle, Mail, Send, Award, ArrowLeft, Shield } from 'lucide-react';
 
 export default function CommandantDashboard() {
@@ -28,20 +29,29 @@ export default function CommandantDashboard() {
   const fetchSubmissions = async () => {
     setLoading(true);
     try {
-      const res = await apiRequest('/api/submissions');
-      setSubmissions(res.submissions || []);
-      if (res.questions) {
-        setQuestionsData(res.questions);
+      // 1. Fetch questions client-side from the public folder
+      const questionsRes = await fetch('/questions.json');
+      if (!questionsRes.ok) {
+        throw new Error('Failed to load questions.json');
       }
+      const questions = await questionsRes.json();
+      setQuestionsData(questions);
+
+      // 2. Fetch all submissions from Firestore
+      const submissionsSnap = await getDocs(collection(db, 'submissions'));
+      const list = [];
+      submissionsSnap.forEach(docSnap => {
+        list.push(docSnap.data());
+      });
+      setSubmissions(list);
     } catch (e) {
-      alert('Failed to load submissions. Render server might be sleeping, waking it up...');
+      alert('Failed to load submissions. Please check your network connection.');
       console.error(e);
     } finally {
       setLoading(false);
     }
   };
 
-  // Compile flat questions list
   useEffect(() => {
     if (questionsData) {
       const examPaper = questionsData.exam_paper;
@@ -165,26 +175,33 @@ export default function CommandantDashboard() {
     });
     return Math.round(total * 100) / 100;
   };
-
   const handleSaveGrade = async (e) => {
     e.preventDefault();
     if (!selectedSub) return;
     
     setSavingGrade(true);
     try {
-      const res = await apiRequest('/api/grade-submission', {
-        method: 'POST',
-        body: JSON.stringify({
-          email: selectedSub.email,
-          questionGrades,
-          feedback
-        })
+      const qGrades = questionGrades || {};
+      let totalMarks = 0;
+      Object.values(qGrades).forEach(val => {
+        totalMarks += Number(val) || 0;
       });
+
+      const updatedSub = {
+        ...selectedSub,
+        questionGrades: qGrades,
+        marks: Math.round(totalMarks * 100) / 100,
+        feedback: feedback || ""
+      };
+
+      const subRef = doc(db, 'submissions', selectedSub.email.toLowerCase());
+      await setDoc(subRef, updatedSub);
+      
       alert('Grades saved successfully!');
       
       // Update local state
-      setSubmissions(prev => prev.map(s => s.email === selectedSub.email ? res.submission : s));
-      setSelectedSub(res.submission);
+      setSubmissions(prev => prev.map(s => s.email.toLowerCase() === selectedSub.email.toLowerCase() ? updatedSub : s));
+      setSelectedSub(updatedSub);
     } catch (err) {
       alert(`Failed to save grades: ${err.message}`);
     } finally {
@@ -201,11 +218,55 @@ export default function CommandantDashboard() {
 
     setPublishing(true);
     try {
-      const res = await apiRequest('/api/publish-results', { method: 'POST' });
-      alert(res.message || 'Results published successfully!');
-      setDispatchedEmails(res.dispatches || []);
+      // 1. Publish global config to Firestore
+      await setDoc(doc(db, 'config', 'global'), { resultsPublished: true });
+
+      const dispatches = [];
+      // 2. Loop over submissions and generate passcode if they are graded and don't have passcode yet
+      for (const sub of submissions) {
+        if (sub.marks !== null && !sub.passcode) {
+          const p1 = Math.floor(1000 + Math.random() * 9000);
+          const p2 = Math.floor(1000 + Math.random() * 9000);
+          const p3 = Math.floor(1000 + Math.random() * 9000);
+          const p4 = Math.floor(1000 + Math.random() * 9000);
+          const passcode = `${p1}-${p2}-${p3}-${p4}`;
+
+          const updatedSub = {
+            ...sub,
+            passcode,
+            published: true
+          };
+
+          await setDoc(doc(db, 'submissions', sub.email.toLowerCase()), updatedSub);
+
+          const emailBody = `Dear ${sub.name},\n\nYour results for the Python Masterclass Final Exam have been graded.\n\nScore: ${sub.marks}/30\nFeedback: ${sub.feedback || 'None'}\n\nPlease enter the following 16-digit password on the results portal to decrypt and download your official completion certificate:\n${passcode}\n\nCongratulations,\nDevShaala Invigilation Team`;
+
+          dispatches.push({
+            to: sub.email,
+            from: 'devshaala@gmail.com',
+            subject: 'DevShaala: Python MasterClass Final Exam Results Published',
+            body: emailBody,
+            passcode
+          });
+        } else if (sub.marks !== null && sub.passcode) {
+          // If they already have passcode, include them in the simulated logs for completeness
+          const emailBody = `Dear ${sub.name},\n\nYour results for the Python Masterclass Final Exam have been graded.\n\nScore: ${sub.marks}/30\nFeedback: ${sub.feedback || 'None'}\n\nPlease enter the following 16-digit password on the results portal to decrypt and download your official completion certificate:\n${sub.passcode}\n\nCongratulations,\nDevShaala Invigilation Team`;
+          dispatches.push({
+            to: sub.email,
+            from: 'devshaala@gmail.com',
+            subject: 'DevShaala: Python MasterClass Final Exam Results Published (Resent)',
+            body: emailBody,
+            passcode: sub.passcode
+          });
+        }
+      }
+
+      alert('Results published successfully!');
+      setDispatchedEmails(dispatches);
       setShowEmailModal(true);
-      fetchSubmissions(); // reload
+      
+      // Reload submissions from database
+      await fetchSubmissions();
     } catch (e) {
       alert(`Failed to publish: ${e.message}`);
     } finally {

@@ -1,8 +1,36 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiRequest, BACKEND_URL } from '../api';
+import { db } from '../firebase';
+import { doc, getDoc, setDoc, getDocs, collection } from 'firebase/firestore';
 import { Calendar, Clock, Camera, CheckCircle, ShieldCheck, HelpCircle, Lock, Trophy } from 'lucide-react';
 import { uploadImage } from '../utils/uploadImage';
+
+// Generate the 20 slots of 2 hours, from 25.06.2026 to 27.06.2026
+const SLOTS = [];
+const startTimes = ["08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00"];
+const days = ["2026-06-25", "2026-06-26", "2026-06-27"];
+
+let slotCount = 0;
+for (const day of days) {
+  for (const startTime of startTimes) {
+    if (slotCount >= 20) break;
+    const [sh, sm] = startTime.split(':').map(Number);
+    const eh = sh + 2;
+    const endTime = `${String(eh).padStart(2, '0')}:00`;
+    
+    const startIso = `${day}T${startTime}:00`;
+    const endIso = `${day}T${endTime}:00`;
+    
+    SLOTS.push({
+      id: `slot_${slotCount + 1}`,
+      displayDate: day.split('-').reverse().join('.'), // DD.MM.YYYY
+      displayTime: `${startTime} - ${endTime}`,
+      startIso,
+      endIso
+    });
+    slotCount++;
+  }
+}
 
 export default function SlotBookingPage() {
   const navigate = useNavigate();
@@ -67,22 +95,26 @@ export default function SlotBookingPage() {
   const checkExistingBooking = async (userEmail) => {
     setLoading(true);
     try {
-      const res = await apiRequest(`/api/booking/${userEmail}`);
-      if (res.booking) {
-        setBooking(res.booking);
+      const bookingDoc = await getDoc(doc(db, 'bookings', userEmail.toLowerCase()));
+      if (bookingDoc.exists()) {
+        setBooking(bookingDoc.data());
+      } else {
+        await fetchSlots();
       }
       
       // Check if student has already submitted exam
-      const subRes = await apiRequest('/api/submissions');
-      const mySub = subRes.submissions?.find(s => s.email.toLowerCase() === userEmail.toLowerCase());
-      if (mySub) {
-        setSubmission(mySub);
+      const subDoc = await getDoc(doc(db, 'submissions', userEmail.toLowerCase()));
+      if (subDoc.exists()) {
+        setSubmission(subDoc.data());
       }
-      setResultsPublished(subRes.config?.resultsPublished || false);
+
+      // Check results status
+      const configDoc = await getDoc(doc(db, 'config', 'global'));
+      setResultsPublished(configDoc.exists() ? (configDoc.data().resultsPublished || false) : false);
 
     } catch (e) {
-      // No booking found, which is fine, we fetch available slots
-      fetchSlots();
+      console.error("Error checking existing booking:", e);
+      await fetchSlots();
     } finally {
       setLoading(false);
     }
@@ -90,16 +122,28 @@ export default function SlotBookingPage() {
 
   const fetchSlots = async () => {
     try {
-      const res = await apiRequest('/api/slots');
-      setSlots(res.slots || []);
+      const slotCounts = {};
+      const bookingsSnap = await getDocs(collection(db, 'bookings'));
+      bookingsSnap.forEach(docSnap => {
+        const data = docSnap.data();
+        slotCounts[data.slotId] = (slotCounts[data.slotId] || 0) + 1;
+      });
+
+      const slotsWithStatus = SLOTS.map(slot => ({
+        ...slot,
+        isBooked: (slotCounts[slot.id] || 0) >= 3,
+        bookingCount: slotCounts[slot.id] || 0
+      }));
+
+      setSlots(slotsWithStatus);
       // Auto-select first available slot
-      const firstAvailable = res.slots.find(s => !s.isBooked);
+      const firstAvailable = slotsWithStatus.find(s => !s.isBooked);
       if (firstAvailable) {
         setSelectedSlotId(firstAvailable.id);
       }
     } catch (e) {
       console.error(e);
-      alert('Failed to load slots. Render server might be warming up, please wait...');
+      alert('Failed to load slots. Please check your internet connection.');
     }
   };
 
@@ -159,6 +203,34 @@ export default function SlotBookingPage() {
 
     setSubmitting(true);
     try {
+      const targetSlot = SLOTS.find(s => s.id === selectedSlotId);
+      if (!targetSlot) {
+        alert('Selected slot does not exist.');
+        setSubmitting(false);
+        return;
+      }
+
+      // Check if student already has a booking
+      const bookingDoc = await getDoc(doc(db, 'bookings', email.toLowerCase()));
+      if (bookingDoc.exists()) {
+        alert(`Student with email ${email} has already booked a slot.`);
+        setSubmitting(false);
+        return;
+      }
+
+      // Check slot bookings count
+      const bookingsSnap = await getDocs(collection(db, 'bookings'));
+      let activeBookingsCount = 0;
+      bookingsSnap.forEach(docSnap => {
+        if (docSnap.data().slotId === selectedSlotId) activeBookingsCount++;
+      });
+
+      if (activeBookingsCount >= 3) {
+        alert('This slot has already been booked by the maximum limit of 3 students.');
+        setSubmitting(false);
+        return;
+      }
+
       // Direct browser-to-Cloudinary upload
       let uploadedUrl = null;
       try {
@@ -167,23 +239,21 @@ export default function SlotBookingPage() {
         console.error("Cloudinary upload failed", uploadErr);
       }
 
-      if (!uploadedUrl) {
-        alert('Biometric upload to Cloudinary failed. Please try capturing the photo again or check your network connection.');
-        setSubmitting(false);
-        return;
-      }
+      const bookingData = {
+        slotId: selectedSlotId,
+        displayDate: targetSlot.displayDate,
+        displayTime: targetSlot.displayTime,
+        startIso: targetSlot.startIso,
+        endIso: targetSlot.endIso,
+        photo: uploadedUrl || photoBase64,
+        name,
+        email: email.toLowerCase(),
+        bookedAt: simulatedTime ? new Date(simulatedTime).toISOString() : new Date().toISOString()
+      };
 
-      const res = await apiRequest('/api/book-slot', {
-        method: 'POST',
-        body: JSON.stringify({
-          email,
-          name,
-          slotId: selectedSlotId,
-          photo: uploadedUrl
-        })
-      });
-      alert(res.message || 'Slot booked successfully!');
-      setBooking(res.booking);
+      await setDoc(doc(db, 'bookings', email.toLowerCase()), bookingData);
+      alert('Slot booked successfully!');
+      setBooking(bookingData);
     } catch (err) {
       alert(err.message || 'Booking failed.');
     } finally {
@@ -256,16 +326,33 @@ export default function SlotBookingPage() {
 
     setVerifyingPasscode(true);
     try {
-      const res = await apiRequest('/api/verify-passcode', {
-        method: 'POST',
-        body: JSON.stringify({ email, passcode })
-      });
-      if (res.unlocked) {
-        setScorecard(res.scorecard);
-        alert('Passcode verified! Official scorecard and certificate decrypted successfully.');
+      const subDoc = await getDoc(doc(db, 'submissions', email.toLowerCase()));
+      if (!subDoc.exists()) {
+        alert('No exam submission found for this email.');
+        return;
       }
+      const sub = subDoc.data();
+
+      if (!resultsPublished || !sub.published) {
+        alert('Results have not been published by the invigilator yet.');
+        return;
+      }
+
+      if (!sub.passcode || sub.passcode.replace(/\s/g, '').toLowerCase() !== passcode.replace(/\s/g, '').toLowerCase()) {
+        alert('Incorrect 16-digit passcode. Access denied.');
+        return;
+      }
+
+      setScorecard({
+        name: sub.name,
+        email: sub.email,
+        marks: sub.marks,
+        feedback: sub.feedback,
+        submittedAt: sub.submittedAt
+      });
+      alert('Passcode verified! Official scorecard and certificate decrypted successfully.');
     } catch (err) {
-      alert(err.message || 'Verification failed. Incorrect passcode.');
+      alert('Verification failed. Incorrect passcode.');
     } finally {
       setVerifyingPasscode(false);
     }
