@@ -54,6 +54,10 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '20mb' }));
 
+const apiRouter = express.Router();
+app.use('/api', apiRouter);
+app.use('/', apiRouter);
+
 const questionsPath = path.join(__dirname, '..', 'questions.json');
 
 const transporter = nodemailer.createTransport({
@@ -114,12 +118,12 @@ const getNow = (req) => {
 };
 
 // 1. Health warmer endpoint
-app.get('/api/health', (req, res) => {
+apiRouter.get('/health', (req, res) => {
   res.json({ status: 'ok', serverTime: getNow(req).toISOString(), message: 'Render server active' });
 });
 
 // 2. Fetch all slots with availability info (locks out slot if 3 students booked it)
-app.get('/api/slots', async (req, res) => {
+apiRouter.get('/slots', async (req, res) => {
   try {
     const slotCounts = {};
     const bookingsSnap = await getDocs(collection(db, 'bookings'));
@@ -141,7 +145,7 @@ app.get('/api/slots', async (req, res) => {
 });
 
 // 3. Book a slot (with photo capture validation)
-app.post('/api/book-slot', async (req, res) => {
+apiRouter.post('/book-slot', async (req, res) => {
   const { email, name, slotId, photo } = req.body;
   
   if (!email || !name || !slotId || !photo) {
@@ -194,7 +198,7 @@ app.post('/api/book-slot', async (req, res) => {
 });
 
 // 4. Retrieve booking details for a student
-app.get('/api/booking/:email', async (req, res) => {
+apiRouter.get('/booking/:email', async (req, res) => {
   const email = req.params.email.toLowerCase();
   try {
     const bookingDoc = await getDoc(doc(db, 'bookings', email));
@@ -209,7 +213,7 @@ app.get('/api/booking/:email', async (req, res) => {
 });
 
 // 5. Start the exam, validating time windows
-app.post('/api/start-exam', async (req, res) => {
+apiRouter.post('/start-exam', async (req, res) => {
   const { email } = req.body;
   if (!email) {
     return res.status(400).json({ error: 'Email is required.' });
@@ -294,7 +298,7 @@ app.post('/api/start-exam', async (req, res) => {
 });
 
 // 6. Submit answers and logs
-app.post('/api/submit-exam', async (req, res) => {
+apiRouter.post('/submit-exam', async (req, res) => {
   const { email, answers, logs } = req.body;
   if (!email) {
     return res.status(400).json({ error: 'Email is required.' });
@@ -328,7 +332,7 @@ app.post('/api/submit-exam', async (req, res) => {
 });
 
 // 7. Get submissions list for Commandant
-app.get('/api/submissions', async (req, res) => {
+apiRouter.get('/submissions', async (req, res) => {
   try {
     const submissionsSnap = await getDocs(collection(db, 'submissions'));
     const submissionsList = [];
@@ -356,7 +360,7 @@ app.get('/api/submissions', async (req, res) => {
 });
 
 // 8. Grade a submission
-app.post('/api/grade-submission', async (req, res) => {
+apiRouter.post('/grade-submission', async (req, res) => {
   const { email, questionGrades, feedback } = req.body;
   if (!email) {
     return res.status(400).json({ error: 'Email is required.' });
@@ -391,7 +395,7 @@ app.post('/api/grade-submission', async (req, res) => {
 });
 
 // 9. Publish results (with email dispatch logs & 16-digit passcodes)
-app.post('/api/publish-results', async (req, res) => {
+apiRouter.post('/publish-results', async (req, res) => {
   try {
     await setDoc(doc(db, 'config', 'global'), { resultsPublished: true });
     const submissionsSnap = await getDocs(collection(db, 'submissions'));
@@ -436,7 +440,7 @@ app.post('/api/publish-results', async (req, res) => {
 });
 
 // 10. Verify 16-digit passcode to unlock certificate
-app.post('/api/verify-passcode', async (req, res) => {
+apiRouter.post('/verify-passcode', async (req, res) => {
   const { email, passcode } = req.body;
   if (!email || !passcode) {
     return res.status(400).json({ error: 'Email and Passcode are required.' });
