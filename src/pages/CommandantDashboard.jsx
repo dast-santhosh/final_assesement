@@ -336,6 +336,14 @@ export default function CommandantDashboard() {
           <button 
             type="button" 
             className="btn-secondary" 
+            style={{ padding: '8px 16px', fontSize: '13px', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', color: '#3b82f6' }}
+            onClick={() => navigate('/project-dispatcher')}
+          >
+            <Mail size={14} /> Final Project Dispatcher
+          </button>
+          <button 
+            type="button" 
+            className="btn-secondary" 
             style={{ padding: '8px 16px', fontSize: '13px' }}
             onClick={() => navigate('/')}
           >

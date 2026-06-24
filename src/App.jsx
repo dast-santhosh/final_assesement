@@ -4,6 +4,7 @@ import LoginPage from './pages/LoginPage';
 import SlotBookingPage from './pages/SlotBookingPage';
 import ExamPage from './pages/ExamPage';
 import CommandantDashboard from './pages/CommandantDashboard';
+import ProjectEmailDispatcher from './pages/ProjectEmailDispatcher';
 import { Monitor } from 'lucide-react';
 
 export default function App() {
@@ -103,6 +104,7 @@ export default function App() {
         <Route path="/book" element={<SlotBookingPage />} />
         <Route path="/exam" element={<ExamPage />} />
         <Route path="/commandant" element={<CommandantDashboard />} />
+        <Route path="/project-dispatcher" element={<ProjectEmailDispatcher />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
