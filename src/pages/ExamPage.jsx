@@ -2,8 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { db } from '../firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { Shield, AlertTriangle, MonitorPlay, Send, RefreshCw, Compass, ArrowLeft, ArrowRight, Check } from 'lucide-react';
 import Editor from '@monaco-editor/react';
+import { Shield, AlertTriangle, MonitorPlay, Send, RefreshCw, Compass, ArrowLeft, ArrowRight, Check } from 'lucide-react';
+
+const getNow = () => {
+  const simTime = localStorage.getItem('simulated_time');
+  if (simTime) {
+    return new Date(simTime);
+  }
+  return new Date();
+};
 
 export default function ExamPage() {
   const navigate = useNavigate();
@@ -150,7 +158,7 @@ export default function ExamPage() {
       setReferencePhoto(booking.photo || '');
 
       // 3. Load or create submission document in Firestore
-      const now = new Date();
+      const now = getNow();
       const subRef = doc(db, 'submissions', email.toLowerCase());
       const subDoc = await getDoc(subRef);
 
@@ -379,7 +387,7 @@ export default function ExamPage() {
     setLoading(true);
     exitFullscreen();
     try {
-      const now = new Date();
+      const now = getNow();
       const subRef = doc(db, 'submissions', email.toLowerCase());
       const subDoc = await getDoc(subRef);
       if (!subDoc.exists()) {
