@@ -24,7 +24,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     
                     <tr>
                         <td align="center" style="padding: 25px 20px; background-color: #ffffff; border-bottom: 2px solid #f3f4f6;">
-                            <img src="https://i.ibb.co/5hLjp6qw/Dev-Shaala-Logo.png" alt="DevShaala Logo" style="max-height: 55px; display: block; margin-bottom: 10px;">
+                            <img src="https://i.ibb.co/d0MkQ4t6/Dev-Shaala-Logo.png" alt="DevShaala Logo" style="max-height: 55px; display: block; margin-bottom: 10px;">
                             <p style="margin: 0; font-size: 14px; font-weight: bold; letter-spacing: 0.5px;">
                                 <span style="color: #1e3a8a;">from DEVSHAALA</span> 
                                 <span style="color: #9ca3af; font-weight: normal; margin: 0 5px;">~</span> 
