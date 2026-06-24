@@ -92,6 +92,13 @@ export default function SlotBookingPage() {
     checkExistingBooking(storedEmail);
   }, [simulatedTime]); // Reload state if simulated time changes
 
+  // Cleanup webcam stream when navigating away
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, []);
+
   const checkExistingBooking = async (userEmail) => {
     setLoading(true);
     try {
@@ -151,7 +158,12 @@ export default function SlotBookingPage() {
   const startCamera = async () => {
     setIsCameraActive(true);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          width: { ideal: 640 }, 
+          height: { ideal: 480 } 
+        } 
+      });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
@@ -682,6 +694,21 @@ export default function SlotBookingPage() {
             </button>
           </div>
 
+          {/* Note Banner */}
+          <div style={{
+            background: 'rgba(79, 70, 229, 0.1)',
+            border: '1px solid rgba(79, 70, 229, 0.3)',
+            borderRadius: '12px',
+            padding: '14px 20px',
+            color: 'var(--accent-primary)',
+            fontSize: '14px',
+            fontWeight: '600',
+            textAlign: 'center',
+            marginBottom: '15px'
+          }}>
+            Original certificate will be sent to Email ID!
+          </div>
+
           {/* Stunning Certificate Frame */}
           <div className="certificate-frame">
             <div className="cert-seal"></div>
@@ -717,7 +744,7 @@ export default function SlotBookingPage() {
                 <div className="cert-sig-title">Founder & Lead Mentor</div>
               </div>
               <div className="cert-sig">
-                <div style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', color: 'var(--text-primary)', fontSize: '18px', marginBottom: '4px' }}>AI Proctor Verified</div>
+                <div style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', color: 'var(--text-primary)', fontSize: '18px', marginBottom: '4px' }}>Proctor Verified</div>
                 <div className="cert-sig-line"></div>
                 <div className="cert-sig-title">Global Tech Council Auditor</div>
               </div>

@@ -4,32 +4,6 @@ import { db } from '../firebase';
 import { doc, getDoc, setDoc, getDocs, collection } from 'firebase/firestore';
 import { Users, FileText, CheckCircle, Mail, Send, Award, ArrowLeft, Shield } from 'lucide-react';
 
-const sendSmtpEmail = (emailConfig) => {
-  return new Promise((resolve, reject) => {
-    try {
-      const config = {
-        ...emailConfig,
-        nocache: Math.floor(1e6 * Math.random() + 1),
-        Action: "Send"
-      };
-      const payload = JSON.stringify(config);
-      
-      const xhr = new XMLHttpRequest();
-      xhr.open("POST", "https://smtpjs.com/v3/smtpjs.aspx?", true);
-      xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-      xhr.onload = function () {
-        resolve(xhr.responseText);
-      };
-      xhr.onerror = function (e) {
-        reject(new Error("Network error occurred during SMTP request"));
-      };
-      xhr.send(payload);
-    } catch (err) {
-      reject(err);
-    }
-  });
-};
-
 export default function CommandantDashboard() {
   const navigate = useNavigate();
   const [submissions, setSubmissions] = useState([]);
@@ -247,121 +221,6 @@ export default function CommandantDashboard() {
       // 1. Publish global config to Firestore
       await setDoc(doc(db, 'config', 'global'), { resultsPublished: true });
 
-      const EMAIL_HTML_TEMPLATE = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your Final Exam Scores - DevShaala</title>
-</head>
-<body style="margin: 0; padding: 0; background-color: #e0e7ff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333333;">
-    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #e0e7ff; padding: 40px 10px;">
-        <tr>
-            <td align="center">
-                <table width="100%" max-width="600" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff; max-width: 600px; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
-                    <tr>
-                        <td align="center" style="padding: 25px 20px; background-color: #ffffff; border-bottom: 2px solid #f3f4f6;">
-                            <img src="https://i.ibb.co/5hLjp6qw/Dev-Shaala-Logo.png" alt="DevShaala Logo" style="max-height: 55px; display: block; margin-bottom: 10px;">
-                            <p style="margin: 0; font-size: 14px; font-weight: bold; letter-spacing: 0.5px;">
-                                <span style="color: #1e3a8a;">from DEVSHAALA</span> 
-                                <span style="color: #9ca3af; font-weight: normal; margin: 0 5px;">~</span> 
-                                <span style="color: #10b981;">under GTC</span>
-                            </p>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <img src="https://images.unsplash.com/photo-1555066931-4365d14bab8c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Python MasterClass" style="width: 100%; max-height: 200px; object-fit: cover; display: block;">
-                        </td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 40px 30px;">
-                            <h2 style="margin-top: 0; color: #1e3a8a; font-size: 24px; text-align: center;">Python Masterclass Assessment</h2>
-                            <p style="font-size: 16px; line-height: 1.6; color: #4b5563;">Hi <strong>$NAME</strong>,</p>
-                            <p style="font-size: 16px; line-height: 1.6; color: #4b5563;">Congratulations on successfully completing your <strong>Final Exam</strong>! Below is a detailed breakdown of your performance, reviewed by your mentor.</p>
-                            <p style="font-size: 16px; line-height: 1.6; color: #4b5563;">Please enter the following 16-digit passcode on the results portal to decrypt and download your official completion certificate:</p>
-                            <div style="text-align: center; margin: 20px 0;">
-                                <span style="color: #ef4444; font-family: monospace; font-size: 20px; font-weight: bold; background: #fee2e2; padding: 10px 20px; border-radius: 6px; border: 1px dashed #fca5a5; display: inline-block; letter-spacing: 1px;">$PASSCODE</span>
-                            </div>
-                            <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin: 30px 0; background-color: #f8fafc; border: 2px solid #bfdbfe; border-radius: 10px; overflow: hidden;">
-                                <tr>
-                                    <td align="center" style="background-color: #1e3a8a; padding: 20px; color: #ffffff;">
-                                        <p style="margin: 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #93c5fd;">Total Score</p>
-                                        <h1 style="margin: 5px 0 0 0; font-size: 48px;">$TOTAL</h1>
-                                        <p style="margin: 5px 0 0 0; font-size: 18px; font-weight: bold; color: #10b981;">Grade: $GRADE</p>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 20px 30px;">
-                                        <table width="100%" border="0" cellspacing="0" cellpadding="10" style="font-size: 15px;">
-                                            <tr>
-                                                <td style="color: #4b5563; border-bottom: 1px solid #e2e8f0;">Section A: MCQ Questionnaire</td>
-                                                <td align="right" style="color: #1e3a8a; font-weight: bold; border-bottom: 1px solid #e2e8f0;">$QUESTIONAIRRE</td>
-                                            </tr>
-                                            <tr>
-                                                <td style="color: #4b5563; border-bottom: 1px solid #e2e8f0;">Section B: Core Programs</td>
-                                                <td align="right" style="color: #1e3a8a; font-weight: bold; border-bottom: 1px solid #e2e8f0;">$PROGRAM</td>
-                                            </tr>
-                                            <tr>
-                                                <td style="color: #4b5563; border-bottom: 1px solid #e2e8f0;">Section C: Systems Scenario (Long Code)</td>
-                                                <td align="right" style="color: #1e3a8a; font-weight: bold; border-bottom: 1px solid #e2e8f0;">$PRESENTATION</td>
-                                            </tr>
-                                            <tr>
-                                                <td style="color: #4b5563; border-bottom: 1px solid #e2e8f0;">Section D: Theoretical Answers</td>
-                                                <td align="right" style="color: #1e3a8a; font-weight: bold; border-bottom: 1px solid #e2e8f0;">$EXPLANATION</td>
-                                            </tr>
-                                            <tr>
-                                                <td style="color: #4b5563;">Overall Impression</td>
-                                                <td align="right" style="color: #1e3a8a; font-weight: bold;">$OVERALL</td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
-                            <div style="background-color: #ecfdf5; border-left: 4px solid #10b981; padding: 15px 20px; margin-bottom: 30px;">
-                                <p style="margin: 0; color: #065f46; font-size: 15px; font-style: italic;">
-                                    <strong>Mentor's Remark:</strong> "$REMARKS"
-                                </p>
-                            </div>
-                            <hr style="border: none; border-top: 1px dashed #cbd5e1; margin: 30px 0;">
-                            <p style="font-size: 14px; font-weight: bold; color: #1e3a8a; margin-bottom: 10px;">Message summary for your records:</p>
-                            <div style="background-color: #f1f5f9; padding: 20px; border-radius: 8px;">
-                                <p style="font-family: 'Courier New', Courier, monospace; font-size: 13px; line-height: 1.6; color: #334155; margin: 0;">
-                                    Name: $NAME<br>
-                                    Batch Name: Python Masterclass Assessment<br>
-                                    Exam Name: Final Theory & Practical Exam<br>
-                                    --------------------------------------<br>
-                                    MCQ Questionnaire: $QUESTIONAIRRE<br>
-                                    Core Programs    : $PROGRAM<br>
-                                    Systems Scenario : $PRESENTATION<br>
-                                    Theory Answers   : $EXPLANATION<br>
-                                    Overall          : $OVERALL<br>
-                                    --------------------------------------<br>
-                                    Total Marks      : $TOTAL<br>
-                                    Grade            : $GRADE<br>
-                                    Decryption Key   : $PASSCODE<br>
-                                    Remarks          : $REMARKS<br>
-                                    <br>
-                                    Best Regards,<br>
-                                    SANTHOSH<br>
-                                    Mentor, DEVSHAALA
-                                </p>
-                            </div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td align="center" style="background-color: #1e3a8a; padding: 20px; color: #bfdbfe; font-size: 12px;">
-                            <p style="margin: 0;">© 2026 DevShaala under GTC. All rights reserved.</p>
-                        </td>
-                    </tr>
-                </table>
-                <div style="height: 40px;"></div>
-            </td>
-        </tr>
-    </table>
-</body>
-</html>`;
-
       const dispatches = [];
       // 2. Loop over submissions and generate passcode if they are graded and don't have passcode yet
       for (const sub of submissions) {
@@ -435,7 +294,7 @@ export default function CommandantDashboard() {
             from: 'devshaala@gmail.com',
             subject: `DevShaala Python Masterclass Exam Results - ${sub.name}`,
             passcode,
-            status: 'Pending',
+            status: 'Exported',
             studentName: sub.name,
             marksMcq: marksMcq.toFixed(1),
             marksPrograms: marksPrograms.toFixed(1),
@@ -455,100 +314,36 @@ export default function CommandantDashboard() {
         return;
       }
 
-      // Initial loading state in modal
-      setDispatchedEmails([{ 
-        to: 'All Candidates', 
-        from: 'system', 
-        subject: 'Initializing Python WASM Compiler...', 
-        body: 'Please wait while WebAssembly finishes loading the Python runtime...', 
-        passcode: '----', 
-        status: 'Loading WASM...' 
-      }]);
+      // Generate CSV content
+      const escapeCSV = (str) => {
+        if (!str) return '';
+        const clean = str.replace(/"/g, '""');
+        if (clean.includes(',') || clean.includes('\n') || clean.includes('"')) {
+          return `"${clean}"`;
+        }
+        return clean;
+      };
+
+      let csvContent = "NAME,EMAIL,PROGRAM,PRESENTATION,EXPLANATION,QUESTIONAIRRE,OVERALL,TOTAL,Grade,Remarks,PASSCODE\n";
+      dispatches.forEach(d => {
+        csvContent += `${escapeCSV(d.studentName)},${escapeCSV(d.to)},${escapeCSV(d.marksPrograms)},${escapeCSV(d.marksLongPrograms)},${escapeCSV(d.marksShortAnswers)},${escapeCSV(d.marksMcq)},${escapeCSV(d.overallImpression)},${escapeCSV(d.marksTotal)},${escapeCSV(d.grade)},${escapeCSV(d.feedback)},${escapeCSV(d.passcode)}\n`;
+      });
+
+      // Trigger browser download of CSV file
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", "USERS FINAL PROJECT.csv");
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setDispatchedEmails(dispatches);
       setShowEmailModal(true);
 
-      // Load Pyodide WASM
-      let pyodideInstance = window.pyodideInstance;
-      if (!pyodideInstance) {
-        try {
-          pyodideInstance = await window.loadPyodide();
-          window.pyodideInstance = pyodideInstance;
-        } catch (err) {
-          alert(`Failed to load Python WASM compiler: ${err.message}`);
-          setShowEmailModal(false);
-          setPublishing(false);
-          return;
-        }
-      }
-
-      // Reset logs modal with the parsed dispatches list
-      setDispatchedEmails(dispatches);
-
-      // 3. Dispatch real emails via SMTP.js sequentially to update status progressively
-      const updatedDispatches = [...dispatches];
-      for (let i = 0; i < updatedDispatches.length; i++) {
-        const d = updatedDispatches[i];
-        updatedDispatches[i] = { ...d, status: 'Compiling in Python...' };
-        setDispatchedEmails([...updatedDispatches]);
-
-        try {
-          // Set variables in Pyodide namespace
-          pyodideInstance.globals.set("student_name", d.studentName);
-          pyodideInstance.globals.set("marks_mcq", d.marksMcq);
-          pyodideInstance.globals.set("marks_programs", d.marksPrograms);
-          pyodideInstance.globals.set("marks_long_programs", d.marksLongPrograms);
-          pyodideInstance.globals.set("marks_short_answers", d.marksShortAnswers);
-          pyodideInstance.globals.set("marks_total", d.marksTotal);
-          pyodideInstance.globals.set("grade", d.grade);
-          pyodideInstance.globals.set("overall_impression", d.overallImpression);
-          pyodideInstance.globals.set("feedback", d.feedback);
-          pyodideInstance.globals.set("passcode", d.passcode);
-
-          // Execute template replacement in Python
-          const pythonCode = `
-from string import Template
-
-template = Template("""${EMAIL_HTML_TEMPLATE}""")
-personalized_html = template.safe_substitute(
-    NAME=student_name,
-    PROGRAM=f"{marks_programs}/9.0",
-    PRESENTATION=f"{marks_long_programs}/6.0",
-    EXPLANATION=f"{marks_short_answers}/5.0",
-    QUESTIONAIRRE=f"{marks_mcq}/10.0",
-    OVERALL=overall_impression,
-    TOTAL=f"{marks_total}/30.0",
-    GRADE=grade,
-    REMARKS=feedback,
-    PASSCODE=passcode
-)
-personalized_html
-`;
-          const htmlBody = pyodideInstance.runPython(pythonCode);
-
-          updatedDispatches[i] = { ...d, status: 'Sending...' };
-          setDispatchedEmails([...updatedDispatches]);
-
-          const response = await sendSmtpEmail({
-            Host: "smtp.gmail.com",
-            Username: "devshaala@gmail.com",
-            Password: "cdoyctvndvvsrafv", // password without spaces
-            To: d.to,
-            From: "devshaala@gmail.com",
-            Subject: d.subject,
-            Body: htmlBody
-          });
-
-          if (response === 'OK') {
-            updatedDispatches[i] = { ...d, status: 'Sent Successfully', body: 'HTML compiled via Python WASM and sent successfully.' };
-          } else {
-            updatedDispatches[i] = { ...d, status: `Failed: ${response}` };
-          }
-        } catch (err) {
-          updatedDispatches[i] = { ...d, status: `Error: ${err.message}` };
-        }
-        setDispatchedEmails([...updatedDispatches]);
-      }
-
-      alert('Results published and email dispatch process completed!');
+      alert('Results published and CSV file USERS FINAL PROJECT.csv has been downloaded!');
       
       // Reload submissions from database
       await fetchSubmissions();
@@ -911,58 +706,48 @@ personalized_html
 
       </div>
 
-      {/* Simulated Email Cards Overlay Modal */}
+      {/* CSV Export & Results Published Overlay Modal */}
       {showEmailModal && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '650px', background: 'var(--bg-secondary)' }}>
+          <div className="modal-content" style={{ maxWidth: '700px', background: 'var(--bg-secondary)' }}>
             <div style={{ textAlign: 'left', marginBottom: '20px' }}>
               <h3 style={{ fontSize: '20px', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <CheckCircle size={22} /> Results Email Dispatch Log
+                <CheckCircle size={22} /> Results Published & CSV Exported
               </h3>
-              <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                The following mock email cards representing verification letters have been successfully triggered.
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '6px', lineHeight: '1.5' }}>
+                The evaluation scores and decryption passcodes have been published to the student database. A CSV results file has been generated and downloaded to your local device. 
+                <br /><b style={{ color: 'var(--accent-primary)' }}>Note:</b> You can run the local script <code>send_emails.py</code> using this CSV file to send the results emails.
               </p>
             </div>
 
             <div style={{ maxHeight: '400px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              {dispatchedEmails.map((email, idx) => (
-                <div key={idx} className="email-sim-card">
-                  <div className="email-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              {dispatchedEmails.map((item, idx) => (
+                <div key={idx} className="email-sim-card" style={{ padding: '15px 20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
-                      <div className="email-meta"><b>From:</b> {email.from}</div>
-                      <div className="email-meta"><b>To:</b> {email.to}</div>
-                      <div className="email-meta"><b>Subject:</b> {email.subject}</div>
+                      <h4 style={{ margin: '0 0 5px 0', fontSize: '15px', color: 'var(--text-primary)' }}>{item.studentName}</h4>
+                      <div className="email-meta" style={{ margin: 0 }}><b>Email:</b> {item.to}</div>
+                      <div className="email-meta" style={{ margin: '2px 0 0 0' }}><b>Total:</b> {item.marksTotal}/30 ({item.grade})</div>
                     </div>
                     <div style={{
                       padding: '4px 8px',
                       borderRadius: '4px',
                       fontSize: '11px',
                       fontWeight: 'bold',
-                      background: email.status === 'Sent Successfully' ? 'rgba(74, 222, 128, 0.2)' : 
-                                  email.status === 'Sending...' ? 'rgba(250, 204, 21, 0.2)' : 
-                                  email.status?.startsWith('Failed') || email.status?.startsWith('Error') ? 'rgba(248, 113, 113, 0.2)' : 'rgba(156, 163, 175, 0.2)',
-                      color: email.status === 'Sent Successfully' ? 'rgb(74, 222, 128)' : 
-                             email.status === 'Sending...' ? 'rgb(250, 204, 21)' : 
-                             email.status?.startsWith('Failed') || email.status?.startsWith('Error') ? 'rgb(248, 113, 113)' : 'rgb(156, 163, 175)',
-                      border: `1px solid ${
-                        email.status === 'Sent Successfully' ? 'rgba(74, 222, 128, 0.4)' : 
-                        email.status === 'Sending...' ? 'rgba(250, 204, 21, 0.4)' : 
-                        email.status?.startsWith('Failed') || email.status?.startsWith('Error') ? 'rgba(248, 113, 113, 0.4)' : 'rgba(156, 163, 175, 0.4)'
-                      }`
+                      background: 'rgba(74, 222, 128, 0.2)',
+                      color: 'rgb(74, 222, 128)',
+                      border: '1px solid rgba(74, 222, 128, 0.4)'
                     }}>
-                      {email.status || 'Pending'}
+                      {item.status || 'Exported'}
                     </div>
                   </div>
-                  <div className="email-body">
-                    <p style={{ whiteSpace: 'pre-wrap' }}>{email.body}</p>
-                    <div className="email-passcode-box">
-                      {email.passcode}
-                    </div>
+                  <div className="email-passcode-box" style={{ margin: '12px 0 0 0', padding: '10px', fontSize: '16px' }}>
+                    Passcode: {item.passcode}
                   </div>
                 </div>
               ))}
               {dispatchedEmails.length === 0 && (
-                <p style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center' }}>No emails were generated (make sure you graded at least one candidate!).</p>
+                <p style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center' }}>No candidates were exported (make sure you graded at least one candidate!).</p>
               )}
             </div>
 

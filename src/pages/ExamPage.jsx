@@ -319,7 +319,12 @@ export default function ExamPage() {
   // Webcam capture
   const startWebcam = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 160, height: 120 } });
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          width: { ideal: 320 }, 
+          height: { ideal: 240 } 
+        } 
+      });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         setCameraActive(true);
