@@ -5,13 +5,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import Editor from '@monaco-editor/react';
 import { Shield, AlertTriangle, MonitorPlay, Send, RefreshCw, Compass, ArrowLeft, ArrowRight, Check } from 'lucide-react';
 
-const getNow = () => {
-  const simTime = localStorage.getItem('simulated_time');
-  if (simTime) {
-    return new Date(simTime);
-  }
-  return new Date();
-};
+const getNow = () => new Date();
 
 export default function ExamPage() {
   const navigate = useNavigate();

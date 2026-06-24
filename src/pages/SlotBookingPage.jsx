@@ -57,10 +57,7 @@ export default function SlotBookingPage() {
   const [verifyingPasscode, setVerifyingPasscode] = useState(false);
   const [scorecard, setScorecard] = useState(null);
 
-  // Simulated Time for Testing
-  const [simulatedTime, setSimulatedTime] = useState(
-    localStorage.getItem('simulated_time') || ''
-  );
+
 
   // Countdown clock states
   const [timeRemaining, setTimeRemaining] = useState({ days: 0, hours: 0, mins: 0, secs: 0 });
@@ -90,7 +87,7 @@ export default function SlotBookingPage() {
     );
 
     checkExistingBooking(storedEmail);
-  }, [simulatedTime]); // Reload state if simulated time changes
+  }, []);
 
   // Cleanup webcam stream when navigating away
   useEffect(() => {
@@ -260,7 +257,7 @@ export default function SlotBookingPage() {
         photo: uploadedUrl || photoBase64,
         name,
         email: email.toLowerCase(),
-        bookedAt: simulatedTime ? new Date(simulatedTime).toISOString() : new Date().toISOString()
+        bookedAt: new Date().toISOString()
       };
 
       await setDoc(doc(db, 'bookings', email.toLowerCase()), bookingData);
@@ -278,7 +275,7 @@ export default function SlotBookingPage() {
     if (!booking || submission) return;
 
     const timer = setInterval(() => {
-      const now = simulatedTime ? new Date(simulatedTime) : new Date();
+      const now = new Date();
       const slotStart = new Date(booking.startIso);
       const slotEnd = new Date(booking.endIso);
 
@@ -311,22 +308,11 @@ export default function SlotBookingPage() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [booking, simulatedTime, submission]);
+  }, [booking, submission]);
 
   const handleStartExam = () => {
     alert("ALERT: Entering secure examination sandbox.\n- All browser exits/tab switches are actively logged.\n- Proctor webcam checks identity. Avoid looking away from monitor.");
     navigate(`/exam?email=${encodeURIComponent(email)}`);
-  };
-
-  const handleSimulateTimeChange = (val) => {
-    setSimulatedTime(val);
-    if (val) {
-      localStorage.setItem('simulated_time', val);
-      alert(`Simulation: System time set to ${val}. Countdown updated.`);
-    } else {
-      localStorage.removeItem('simulated_time');
-      alert(`Simulation: Restored to real-world time.`);
-    }
   };
 
   const handleVerifyPasscode = async (e) => {
@@ -406,37 +392,7 @@ export default function SlotBookingPage() {
         </div>
       </div>
 
-      {/* Simulator Control Bar for Grading Ease */}
-      {!scorecard && (
-        <div className="glass-card" style={{ padding: '15px 25px', marginBottom: '25px', borderColor: 'var(--warning)', borderStyle: 'dashed', display: 'flex', flexWrap: 'wrap', gap: '15px', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <h4 style={{ color: 'var(--warning)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <HelpCircle size={16} /> Test Simulation Controls
-            </h4>
-            <p style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-              Adjust the portal's active system clock to test slots, start window limits (first 30 mins) and live timers.
-            </p>
-          </div>
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <input 
-              type="datetime-local" 
-              className="text-input" 
-              style={{ width: '220px', padding: '8px 12px', fontSize: '13px' }}
-              value={simulatedTime}
-              onChange={e => handleSimulateTimeChange(e.target.value)}
-            />
-            {simulatedTime && (
-              <button 
-                className="btn-secondary" 
-                style={{ padding: '8px 12px', fontSize: '12px' }}
-                onClick={() => handleSimulateTimeChange('')}
-              >
-                Clear
-              </button>
-            )}
-          </div>
-        </div>
-      )}
+
 
       {/* Main State Panel */}
       {!booking && (
